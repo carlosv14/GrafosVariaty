@@ -7,5 +7,6 @@ import scala.collection.mutable.ArrayBuffer
 {
    var StateName:String = Name
    var startingstate:Boolean = false
+   var aceptedstate:Boolean = false
  // private var transitions = ArrayBuffer.empty[]
 }

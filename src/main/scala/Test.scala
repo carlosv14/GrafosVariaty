@@ -40,10 +40,24 @@ object HelloStageDemo extends JFXApp {
       val chkbox = new CheckBox("Edit")
       chkbox.layoutX=520
       chkbox.layoutY = 25
+      val Evaluate = new Button("Evaluate")
+      Evaluate.layoutX = 180
+      Evaluate.layoutY = 25
+      content.add(Evaluate)
       val addTransition = new Button("Add Transition")
       addTransition.layoutX = 80
       addTransition.layoutY = 25
       content.add(addTransition)
+
+
+      Evaluate.handleEvent(MouseEvent.MouseClicked) {
+        a: MouseEvent => {
+              dfa.states.last.aceptedstate = true
+              var l =  dfa.Evaluate("11",dfa.states(0),0)
+              println(l)
+          }
+      }
+
       addTransition.handleEvent(MouseEvent.MouseClicked) {
         a: MouseEvent => {
           var to =""
@@ -101,10 +115,11 @@ object HelloStageDemo extends JFXApp {
              tostate = dfa.states(i)
             }
           }
-         var f = content.add(graphicsManager.DrawTransition(fromcircle,tocircle))
-          var t = content.add(graphicsManager.WriteName((fromcircle.centerX.value+tocircle.centerX.value)/2,(fromcircle.centerY.value+tocircle.centerY.value)/2,v,Color.Blue))
-          var g = dfa.transitions+=(new Transition(v,fromstate,tostate))
-
+          if(tocircle!= null && fromcircle != null ) {
+            var f = content.add(graphicsManager.DrawTransition(fromcircle, tocircle))
+            var t = content.add(graphicsManager.WriteName((fromcircle.centerX.value + tocircle.centerX.value) / 2, (fromcircle.centerY.value + tocircle.centerY.value) / 2, v, Color.Blue))
+            var g = dfa.transitions += (new Transition(v, fromstate, tostate))
+          }
         }
       }
       val removeState = new Button("Delete")
@@ -125,7 +140,7 @@ object HelloStageDemo extends JFXApp {
             var p = dfa.states.remove(erase)
             var c = circles.remove(erase)
 
-            content.remove(3,content.size())
+            content.remove(4,content.size())
             i =0
             for(i<-0 to circles.size-1){
               var h = content.add(circles(i))
