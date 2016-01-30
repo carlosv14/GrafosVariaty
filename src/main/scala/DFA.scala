@@ -21,6 +21,8 @@ class DFA {
    var valid:Boolean = false
     if(state.aceptedstate)
         valid = true
+    if(state==null)
+        valid= false
     var i = 0
     for (i <- 0 to transitions.size - 1) {
       if (transitions(i).transvalue == word.drop(beginpos).take(1) && transitions(i).fromstate.StateName == state.StateName) {
@@ -33,4 +35,6 @@ class DFA {
     }
     return valid
   }
+
+
 }

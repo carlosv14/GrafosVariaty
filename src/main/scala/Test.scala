@@ -48,12 +48,48 @@ object HelloStageDemo extends JFXApp {
       addTransition.layoutX = 80
       addTransition.layoutY = 25
       content.add(addTransition)
+      val SetInitial = new Button("Set Initial")
+      SetInitial.layoutX = 250
+      SetInitial.layoutY = 25
+      content.add(SetInitial)
+
+      SetInitial.handleEvent(MouseEvent.MouseClicked){
+        a:MouseEvent=>{
+          if(chkbox.selected.value) {
+            var initialstate = dfa.getInitialState()
+             if(initialstate!=null) {
+               initialstate.startingstate = false
+               circles(dfa.states.indexOf(initialstate)).fill= Color.Black
+
+             }
+            var i = 0
+            for(i<-0 to dfa.states.size-1) {
+              if (circles(i).fill.value.toString() == "0xa52a2aff" ) {
+                    dfa.states(i).startingstate = true
+                    circles(i).fill = Color.Blue
+              }
+            }
+          }
+        }
+      }
 
 
       Evaluate.handleEvent(MouseEvent.MouseClicked) {
         a: MouseEvent => {
+          var eval =""
+          val dialog = new TextInputDialog(defaultValue = "") {
+            initOwner(stage)
+            title = "Enter String to Evaluate"
+            contentText = "Please enter string to evaluate"
+          }
+
+          val result = dialog.showAndWait()
+          result match {
+            case Some(name) => eval  = name
+            case None => println("Cancel")
+          }
               dfa.states.last.aceptedstate = true
-              var l =  dfa.Evaluate("11",dfa.states(0),0)
+              var l =  dfa.Evaluate(eval,dfa.getInitialState(),0)
               println(l)
           }
       }
@@ -137,8 +173,11 @@ object HelloStageDemo extends JFXApp {
                   erase = i
               }
             }
+            println("tucu"+erase)
+
             var p = dfa.states.remove(erase)
             var c = circles.remove(erase)
+
 
             content.remove(4,content.size())
             i =0
@@ -164,14 +203,6 @@ object HelloStageDemo extends JFXApp {
             val result = dialog.showAndWait()
             result match {
               case Some(name) =>println(name)
-                if(dfa.states.size==0 )
-                  {
-                    var d = dfa.states += (new State(name.toString()))
-                    var p = circles += (graphicsManager.DrawCircle(a.sceneX, a.sceneY))
-                    var _ = content.add(circles.last)
-                    var k = content.add(graphicsManager.WriteName(a.sceneX,a.sceneY,name.toString(),Color.White))
-
-              }
 
                 var i = 0
                 for(i<-0 to dfa.states.size-1 ){
