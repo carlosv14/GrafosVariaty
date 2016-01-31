@@ -41,7 +41,7 @@ class GraphicManager {
   def DrawTransition(fromcircle:Circle,tocircle:Circle):Line={
 
     var line= new Line(){
-      stroke=Color.Blue
+      stroke=Color.Black
       strokeWidth=1.0
       startX.set(fromcircle.centerX.value)
       startY.set(fromcircle.centerY.value)
