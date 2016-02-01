@@ -3,20 +3,18 @@
   */
 
 import javafx.scene.control.{Menu, MenuBar}
-import javafx.scene.text.Text
-
 import scala.collection.mutable.ArrayBuffer
 import scalafx.Includes._
 import scalafx.application.JFXApp
 import scalafx.event.ActionEvent
 import scalafx.geometry.{Pos, Orientation}
-import scalafx.scene.Scene
+import scalafx.scene.{shape, Scene}
 import scalafx.scene.control.Alert.AlertType
 import scalafx.scene.control._
 import scalafx.scene.input.MouseEvent
 import scalafx.scene.paint.Color
-import scalafx.scene.shape.{Circle, Rectangle}
-
+import scalafx.scene.shape.{ArcType, Arc, Line, Circle}
+import scalafx.stage.FileChooser
 
 
 object MainPage extends JFXApp {
@@ -25,7 +23,6 @@ object MainPage extends JFXApp {
     println(collided)
     return 0 <= collided && collided <= Math.pow(2*circle.radius.value, 2)
   }
-
 
 
   stage = new JFXApp.PrimaryStage {
@@ -60,6 +57,7 @@ object MainPage extends JFXApp {
       menuBar.menus = List(fileMenu,optionsMenu,radioMenu)
       menuBar.setPrefWidth(800)
 
+      var dfa:DFA = null
       val setInitial = new MenuItem("Set Initial")
       val setAccepted = new MenuItem("Set/Unset Accepted")
       val contextMenu = new ContextMenu(setInitial,setAccepted )
@@ -71,6 +69,7 @@ object MainPage extends JFXApp {
       content.add(menuBar)
       content.add(toolbar)
 
+
       def deleteEverything(dfa:DFA){
         content.remove(2, content.size())
         dfa.states.remove(0,dfa.states.size)
@@ -80,6 +79,280 @@ object MainPage extends JFXApp {
         println(content.size() + " " + dfa.states.size + " " + dfa.transitions.size + " " + circles.size+ " " + labels.size)
       }
 
+
+      def addState(dfa: DFA, name:String,posx:Double,posy:Double){
+        var collisioned = false
+        var i = 0
+        for (i <- 0 to dfa.states.size - 1) {
+          if (dfa.states(i).StateName.toString() == name.toString() || checkCollision(circles(i), posx, posy)) {
+            collisioned = true
+          }
+        }
+        if ((collisioned && dfa.states.size > 1) || posy <= 70) {
+          val alert = new Alert(AlertType.Error) {
+            initOwner(stage)
+            title = "Error Dialog"
+            headerText = "Error!"
+            contentText = "State already exists or state is misplaced on screen"
+          }.showAndWait()
+        } else {
+          dfa.states += (new State(name.toString()))
+          circles += (graphicsManager.DrawCircle(posx, posy))
+          content.add(circles.last)
+
+          labels += (new Label(name.toString()))
+          labels.last.layoutX = posx - 4
+          labels.last.layoutY = posy - 10
+          labels.last.textFill = Color.White
+          labels.last.alignmentInParent = Pos.TopCenter
+          labels.last.contextMenu = contextMenu
+          content.add(labels.last)
+          // var l = content.add(graphicsManager.WriteName(posx, posy, name.toString(), Color.White))
+        }
+      }
+
+      def setAsInitial(dfa:DFA){
+        var initialstate = dfa.getInitialState()
+        if (initialstate != null) {
+          initialstate.startingstate = false
+          circles(dfa.states.indexOf(initialstate)).fill = Color.Black
+
+        }
+        var i = 0
+        for (i <- 0 to dfa.states.size - 1) {
+          if (dfa.states(i).aceptedstate) {
+            circles(i).fill = Color.Blue
+            circles(i).stroke = Color.Green
+          }
+          if (circles(i).fill.value.toString() == "0xa52a2aff") {
+            dfa.states(i).startingstate = true
+            circles(i).fill = Color.Blue
+          }
+        }
+      }
+
+      def setAsAccepted(dfa:DFA){
+        var i = 0
+        for (i <- 0 to dfa.states.size - 1) {
+          if (circles(i).fill.value.toString() == "0xa52a2aff" && dfa.states(i).startingstate) {
+            circles(i).fill = Color.Blue
+            circles(i).stroke = Color.Green
+            dfa.states(i).aceptedstate = true
+          }
+          if (circles(i).fill.value.toString() == "0xa52a2aff" && !dfa.states(i).aceptedstate) {
+            dfa.states(i).aceptedstate = true
+            circles(i).fill = Color.Green
+          } else if (circles(i).fill.value.toString() == "0xa52a2aff" && dfa.states(i).aceptedstate) {
+            dfa.states(i).aceptedstate = false
+            circles(i).fill = Color.Black
+            println(Color.Blue)
+          }
+        }
+      }
+
+      def addNewTransition(dfa:DFA,from:String,to:String,v:String){
+        var tostate: State = null
+        var fromstate: State = null
+        var i = 0
+        var fromcircle: Circle = null
+        var tocircle: Circle = null
+
+        for (i <- 0 to dfa.states.size - 1) {
+          if (dfa.states(i).StateName == from) {
+            fromcircle = circles(i)
+            fromstate = dfa.states(i)
+          }
+          if (dfa.states(i).StateName == to) {
+            tocircle = circles(i)
+            tostate = dfa.states(i)
+          }
+        }
+        if (tocircle != null && fromcircle != null && dfa.checkTransitionValidity(v, fromstate)) {
+          if (fromcircle != tocircle) {
+            content.add(graphicsManager.DrawTransition(fromcircle, tocircle))
+            content.add(graphicsManager.WriteName((fromcircle.centerX.value + tocircle.centerX.value) / 2, (fromcircle.centerY.value + tocircle.centerY.value) / 2, v, Color.Blue))
+            content.add(graphicsManager.DrawArrowHead(tocircle.centerX.value,tocircle.centerY.value-8))
+          } else {
+            var circle = new Circle() {
+              radius = 20
+              centerX = fromcircle.centerX.value
+              centerY = fromcircle.centerY.value - 35
+              fill = Color.White
+              stroke = Color.Black
+              strokeWidth = 1.0
+            }
+            content.add(circle)
+            content.add(graphicsManager.WriteName(fromcircle.centerX.value, fromcircle.centerY.value - 35, v, Color.Blue))
+          }
+
+          dfa.transitions += (new Transition(v, fromstate, tostate))
+        }
+      }
+
+      def removeTransition(dfa:DFA,from:String,to:String,v:String){
+        var tostate: State = null
+        var fromstate: State = null
+        var i = 0
+        for (i <- 0 to dfa.states.size - 1) {
+          if (dfa.states(i).StateName == from) {
+            fromstate = dfa.states(i)
+          }
+          if (dfa.states(i).StateName == to) {
+            tostate = dfa.states(i)
+          }
+        }
+        i = 0
+        while (i < dfa.transitions.size) {
+          if (dfa.transitions(i).fromstate == fromstate && dfa.transitions(i).tostate == tostate && dfa.transitions(i).transvalue == v) {
+            dfa.transitions.remove(i)
+            i -= 1
+          }
+          i += 1
+        }
+
+
+
+        println("sizeeee " + dfa.transitions.size)
+        content.remove(2, content.size())
+
+
+
+        i = 0
+        for (i <- 0 to circles.size - 1) {
+          content.add(circles(i))
+          content.add(labels(i))
+
+        }
+        i = 0
+
+        var fromcircle: Circle = null
+        var tocircle: Circle = null
+        for (i <- 0 to dfa.transitions.size - 1) {
+          fromcircle = circles(dfa.states.indexOf(dfa.transitions(i).fromstate))
+          tocircle = circles(dfa.states.indexOf(dfa.transitions(i).tostate))
+
+
+          if (fromcircle != tocircle) {
+            content.add(graphicsManager.DrawTransition(fromcircle, tocircle))
+            content.add(graphicsManager.WriteName((fromcircle.centerX.value + tocircle.centerX.value) / 2, (fromcircle.centerY.value + tocircle.centerY.value) / 2, dfa.transitions(i).transvalue, Color.Blue))
+            content.add(graphicsManager.DrawArrowHead(tocircle.centerX.value,tocircle.centerY.value-8))
+
+          } else {
+            var circle = new Circle() {
+              radius = 20
+              centerX = fromcircle.centerX.value
+              centerY = fromcircle.centerY.value - 35
+              fill = Color.White
+              stroke = Color.Black
+              strokeWidth = 1.0
+            }
+            content.add(circle)
+            content.add(graphicsManager.WriteName(fromcircle.centerX.value, fromcircle.centerY.value - 35, dfa.transitions(i).transvalue, Color.Blue))
+          }
+
+
+        }
+
+
+
+      }
+
+      def removeState(dfa:DFA){
+        var i = 0
+        var erasedstatename = ""
+        var erase = -1
+        for (i <- 0 to dfa.states.size - 1) {
+          if (circles(i).fill.value.toString() == "0xa52a2aff") {
+            erase = i
+          }
+        }
+
+
+        erasedstatename = dfa.states(erase).StateName
+        var p = dfa.states.remove(erase)
+        var c = circles.remove(erase)
+        var j = labels.remove(erase)
+        i = 0
+
+        while (i < dfa.transitions.size) {
+          if (dfa.transitions(i).fromstate.StateName == erasedstatename || dfa.transitions(i).tostate.StateName == erasedstatename) {
+            dfa.transitions.remove(i)
+            i -= 1
+          }
+          i += 1
+        }
+        println("sizeeee " + dfa.transitions.size)
+        content.remove(2, content.size())
+
+        i = 0
+        for (i <- 0 to circles.size - 1) {
+          content.add(circles(i))
+          content.add(labels(i))
+        }
+
+        i = 0
+
+        var fromcircle: Circle = null
+        var tocircle: Circle = null
+        for (i <- 0 to dfa.transitions.size - 1) {
+          fromcircle = circles(dfa.states.indexOf(dfa.transitions(i).fromstate))
+          tocircle = circles(dfa.states.indexOf(dfa.transitions(i).tostate))
+          if (fromcircle != tocircle) {
+
+            content.add(graphicsManager.DrawTransition(fromcircle, tocircle))
+            content.add(graphicsManager.WriteName((fromcircle.centerX.value + tocircle.centerX.value) / 2, (fromcircle.centerY.value + tocircle.centerY.value) / 2, dfa.transitions(i).transvalue, Color.Blue))
+            content.add(graphicsManager.DrawArrowHead(tocircle.centerX.value,tocircle.centerY.value-8))
+          } else {
+            var circle = new Circle() {
+              radius = 20
+              centerX = fromcircle.centerX.value
+              centerY = fromcircle.centerY.value - 35
+              fill = Color.White
+              stroke = Color.Black
+              strokeWidth = 1.0
+            }
+            content.add(circle)
+            content.add(graphicsManager.WriteName(fromcircle.centerX.value, fromcircle.centerY.value - 35, dfa.transitions(i).transvalue, Color.Blue))
+          }
+
+        }
+
+
+      }
+
+      def runAutomata(dfa:DFA){
+        var eval = ""
+        val dialog = new TextInputDialog(defaultValue = "") {
+          initOwner(stage)
+          title = "Enter String to Evaluate"
+          contentText = "Please enter string to evaluate"
+        }
+
+        val result = dialog.showAndWait()
+        result match {
+          case Some(name) => eval = name
+
+            var l = dfa.Evaluate(eval, dfa.getInitialState(), 0)
+            if (l == false) {
+              val alert = new Alert(AlertType.Error) {
+                initOwner(stage)
+                title = "Error"
+                headerText = "Error!"
+                contentText = "The String is not accepted"
+              }.showAndWait()
+            } else {
+              val alert = new Alert(AlertType.Information) {
+                initOwner(stage)
+                title = "Success"
+                headerText = "Success!"
+                contentText = "The String is accepted"
+              }.showAndWait()
+            }
+
+          case None => println("Cancel")
+        }
+      }
+
       def programLogic(dfa:DFA,posx:Double,posy:Double) {
         if (!chkbox.selected.value) {
           val dialog = new TextInputDialog(defaultValue = "") {
@@ -87,92 +360,79 @@ object MainPage extends JFXApp {
             title = "State Name"
             contentText = "Please enter the name for this state:"
           }
-          var collisioned = false
+
           val result = dialog.showAndWait()
           result match {
             case Some(name) => println(name)
-
-              var i = 0
-              for (i <- 0 to dfa.states.size - 1) {
-                if (dfa.states(i).StateName.toString() == name.toString() || checkCollision(circles(i), posx, posy)) {
-                  collisioned = true
-                }
-              }
-              if ((collisioned && dfa.states.size > 1) || posy <= 70) {
-                val alert = new Alert(AlertType.Error) {
-                  initOwner(stage)
-                  title = "Error Dialog"
-                  headerText = "Error!"
-                  contentText = "State already exists or state is misplaced on screen"
-                }.showAndWait()
-              } else {
-                dfa.states += (new State(name.toString()))
-                circles += (graphicsManager.DrawCircle(posx, posy))
-                content.add(circles.last)
-
-                labels += (new Label(name.toString()))
-                labels.last.layoutX = posx - 4
-                labels.last.layoutY = posy - 10
-                labels.last.textFill = Color.White
-                labels.last.alignmentInParent = Pos.TopCenter
-                labels.last.contextMenu = contextMenu
-                content.add(labels.last)
-                // var l = content.add(graphicsManager.WriteName(posx, posy, name.toString(), Color.White))
-              }
+              addState(dfa,name,posx,posy)
             case None => println("Cancel")
           }
         }
 
-          setInitial.onAction = (e: ActionEvent) => {
-            if (chkbox.selected.value) {
+        setInitial.onAction = (e: ActionEvent) => {
+          if (chkbox.selected.value) {
+            setAsInitial(dfa)
+          }
+        }
 
-              var initialstate = dfa.getInitialState()
-              if (initialstate != null) {
-                initialstate.startingstate = false
-                circles(dfa.states.indexOf(initialstate)).fill = Color.Black
-
-              }
-              var i = 0
-              for (i <- 0 to dfa.states.size - 1) {
-                if (dfa.states(i).aceptedstate) {
-                  circles(i).fill = Color.Blue
-                  circles(i).stroke = Color.Green
-                }
-                if (circles(i).fill.value.toString() == "0xa52a2aff" ) {
-                  dfa.states(i).startingstate = true
-                  circles(i).fill = Color.Blue
-                }
-              }
-
-            }
+        setAccepted.onAction = (e: ActionEvent) => {
+          if (chkbox.selected.value) {
+              setAsAccepted(dfa)
           }
 
-          setAccepted.onAction = (e: ActionEvent) => {
-            if(chkbox.selected.value) {
-              var i = 0
-              for(i<-0 to dfa.states.size-1) {
-                if(circles(i).fill.value.toString() == "0xa52a2aff" && dfa.states(i).startingstate) {
-                  circles(i).fill =Color.Blue
-                  circles(i).stroke = Color.Green
-                  dfa.states(i).aceptedstate = true
-                }
-                if (circles(i).fill.value.toString() == "0xa52a2aff" && !dfa.states(i).aceptedstate) {
-                  dfa.states(i).aceptedstate = true
-                  circles(i).fill = Color.Green
-                }else if(circles(i).fill.value.toString() == "0xa52a2aff" && dfa.states(i).aceptedstate){
-                  dfa.states(i).aceptedstate = false
-                  circles(i).fill = Color.Black
-                  println(Color.Blue)
-                }
-              }
-            }
 
+        }
 
+        addTransition.onAction = (e: ActionEvent) => {
+          var to = ""
+          var from = ""
+          val fromquestion = new TextInputDialog(defaultValue = "") {
+            initOwner(stage)
+            title = "Destination"
+            contentText = "Please enter the name of the source state"
+          }
+          val fromresult = fromquestion.showAndWait()
+          fromresult match {
+            case Some(name) => from = name
+            case None => println("Cancel")
           }
 
-          addTransition.onAction = (e: ActionEvent) => {
-            var to =""
-            var from =""
+
+          val dialog = new TextInputDialog(defaultValue = "") {
+            initOwner(stage)
+            title = "Source"
+            contentText = "Please enter the name of the destionation state"
+          }
+
+          val result = dialog.showAndWait()
+          result match {
+            case Some(name) => to = name
+            case None => println("Cancel")
+          }
+
+          var v = ""
+          val value = new TextInputDialog(defaultValue = "") {
+            initOwner(stage)
+            title = "Value"
+            contentText = "Please enter the value for the transition"
+          }
+
+          val r = value.showAndWait()
+          r match {
+            case Some(name) => v = name
+                addNewTransition(dfa,from,to,v)
+            case None => println("Cancel")
+          }
+
+          println(dfa.transitions.size)
+
+
+        }
+
+        deleteTrans.onAction = (e: ActionEvent) => {
+          if (chkbox.selected.value) {
+            var to = ""
+            var from = ""
             val fromquestion = new TextInputDialog(defaultValue = "") {
               initOwner(stage)
               title = "Destination"
@@ -180,7 +440,7 @@ object MainPage extends JFXApp {
             }
             val fromresult = fromquestion.showAndWait()
             fromresult match {
-              case Some(name) => from  = name
+              case Some(name) => from = name
               case None => println("Cancel")
             }
 
@@ -193,260 +453,138 @@ object MainPage extends JFXApp {
 
             val result = dialog.showAndWait()
             result match {
-              case Some(name) => to  = name
+              case Some(name) => to = name
               case None => println("Cancel")
             }
 
-            var v =""
+            var v = ""
             val value = new TextInputDialog(defaultValue = "") {
               initOwner(stage)
               title = "Value"
               contentText = "Please enter the value for the transition"
             }
 
-            val r= value.showAndWait()
+            val r = value.showAndWait()
             r match {
-              case Some(name) => v  =  name
-                var tostate:State=null
-                var fromstate:State=null
-                var i = 0
-                var fromcircle:Circle =null
-                var tocircle:Circle=null
+              case Some(name) => v = name
 
-                for(i<-0 to dfa.states.size-1){
-                  if(dfa.states(i).StateName == from ){
-                    fromcircle = circles(i)
-                    fromstate = dfa.states(i)
-                  }
-                  if(dfa.states(i).StateName == to){
-                    tocircle= circles(i)
-                    tostate = dfa.states(i)
-                  }
-                }
-                if(tocircle!= null && fromcircle != null ) {
-                  if(fromcircle!=tocircle) {
-                    content.add(graphicsManager.DrawTransition(fromcircle, tocircle))
-                    content.add(graphicsManager.WriteName((fromcircle.centerX.value + tocircle.centerX.value) / 2, (fromcircle.centerY.value + tocircle.centerY.value) / 2, v, Color.Blue))
-                  }else{
-                    var circle = new Circle() {
-                      radius = 20
-                      centerX = fromcircle.centerX.value
-                      centerY = fromcircle.centerY.value-35
-                      fill = Color.White
-                      stroke = Color.Black
-                      strokeWidth=1.0
-                    }
-                    content.add(circle)
-                    content.add(graphicsManager.WriteName(fromcircle.centerX.value, fromcircle.centerY.value-35, v, Color.Blue))
-                  }
-
-                  dfa.transitions += (new Transition(v, fromstate, tostate))
-                }
-
+               removeTransition(dfa,from,to,v)
 
               case None => println("Cancel")
             }
-
             println(dfa.transitions.size)
-
-
           }
-
-          deleteTrans.onAction = (e: ActionEvent) => {
-            if (chkbox.selected.value) {
-              var to = ""
-              var from = ""
-              val fromquestion = new TextInputDialog(defaultValue = "") {
-                initOwner(stage)
-                title = "Destination"
-                contentText = "Please enter the name of the source state"
-              }
-              val fromresult = fromquestion.showAndWait()
-              fromresult match {
-                case Some(name) => from = name
-                case None => println("Cancel")
-              }
-
-
-              val dialog = new TextInputDialog(defaultValue = "") {
-                initOwner(stage)
-                title = "Source"
-                contentText = "Please enter the name of the destionation state"
-              }
-
-              val result = dialog.showAndWait()
-              result match {
-                case Some(name) => to = name
-                case None => println("Cancel")
-              }
-
-              var v = ""
-              val value = new TextInputDialog(defaultValue = "") {
-                initOwner(stage)
-                title = "Value"
-                contentText = "Please enter the value for the transition"
-              }
-
-              val r = value.showAndWait()
-              r match {
-                case Some(name) => v = name
-
-                  var tostate: State = null
-                  var fromstate: State = null
-                  var i = 0
-                  for (i <- 0 to dfa.states.size - 1) {
-                    if (dfa.states(i).StateName == from) {
-                      fromstate = dfa.states(i)
-                    }
-                    if (dfa.states(i).StateName == to) {
-                      tostate = dfa.states(i)
-                    }
-                  }
-                  i = 0
-                  while (i < dfa.transitions.size) {
-                    if (dfa.transitions(i).fromstate == fromstate && dfa.transitions(i).tostate == tostate && dfa.transitions(i).transvalue == v) {
-                      dfa.transitions.remove(i)
-                      i -= 1
-                    }
-                    i += 1
-                  }
-
-
-
-                  println("sizeeee " + dfa.transitions.size)
-                  content.remove(2, content.size())
-
-                  i = 0
-
-                  var fromcircle: Circle = null
-                  var tocircle: Circle = null
-                  for (i <- 0 to dfa.transitions.size - 1) {
-                    fromcircle = circles(dfa.states.indexOf(dfa.transitions(i).fromstate))
-                    tocircle = circles(dfa.states.indexOf(dfa.transitions(i).tostate))
-                    var f = content.add(graphicsManager.DrawTransition(fromcircle, tocircle))
-                    var t = content.add(graphicsManager.WriteName((fromcircle.centerX.value + tocircle.centerX.value) / 2, (fromcircle.centerY.value + tocircle.centerY.value) / 2, dfa.transitions(i).transvalue, Color.Blue))
-                  }
-
-                  i = 0
-                  for (i <- 0 to circles.size - 1) {
-                    var h = content.add(circles(i))
-                    var p = content.add(graphicsManager.WriteName(circles(i).centerX.value, circles(i).centerY.value, dfa.states(i).StateName, Color.White))
-                    var l = content.add(labels(i))
-
-                  }
-
-
-                case None => println("Cancel")
-              }
-              println(dfa.transitions.size)
-            }
-          }
+        }
 
         removeState.onAction = (e: ActionEvent) => {
           if (chkbox.selected.value) {
-            var i = 0
-            var erasedstatename = ""
-            var erase = -1
-            for(i<-0 to dfa.states.size-1){
-              if(circles(i).fill.value.toString()=="0xa52a2aff") {
-                erase = i
-              }
-            }
-
-
-            erasedstatename = dfa.states(erase).StateName
-            var p = dfa.states.remove(erase)
-            var c = circles.remove(erase)
-            var j = labels.remove(erase)
-            i= 0
-
-            while(i<dfa.transitions.size){
-              if(dfa.transitions(i).fromstate.StateName == erasedstatename || dfa.transitions(i).tostate.StateName == erasedstatename ){
-                dfa.transitions.remove(i)
-                i-=1
-              }
-              i+=1
-            }
-            println("sizeeee " + dfa.transitions.size)
-            content.remove(2,content.size())
-
-            i=0
-
-            var fromcircle:Circle = null
-            var tocircle:Circle = null
-            for(i<-0 to dfa.transitions.size-1){
-              fromcircle = circles(dfa.states.indexOf(dfa.transitions(i).fromstate))
-              tocircle = circles(dfa.states.indexOf(dfa.transitions(i).tostate))
-              var f = content.add(graphicsManager.DrawTransition(fromcircle, tocircle))
-              var t = content.add(graphicsManager.WriteName((fromcircle.centerX.value + tocircle.centerX.value) / 2, (fromcircle.centerY.value + tocircle.centerY.value) / 2, dfa.transitions(i).transvalue, Color.Blue))
-            }
-
-            i =0
-            for(i<-0 to circles.size-1){
-              content.add(circles(i))
-              content.add(graphicsManager.WriteName(circles(i).centerX.value,circles(i).centerY.value,dfa.states(i).StateName,Color.White))
-              content.add(labels(i))
-            }
+            removeState(dfa)
           }
         }
 
         run.onAction = (e: ActionEvent) => {
           if (!chkbox.selected.value) {
-            var eval = ""
-            val dialog = new TextInputDialog(defaultValue = "") {
-              initOwner(stage)
-              title = "Enter String to Evaluate"
-              contentText = "Please enter string to evaluate"
-            }
-
-            val result = dialog.showAndWait()
-            result match {
-              case Some(name) => eval = name
-
-                var l = dfa.Evaluate(eval, dfa.getInitialState(), 0)
-                if (l == false) {
-                  val alert = new Alert(AlertType.Error) {
-                    initOwner(stage)
-                    title = "Error"
-                    headerText = "Error!"
-                    contentText = "The String is not accepted"
-                  }.showAndWait()
-                } else {
-                  val alert = new Alert(AlertType.Information) {
-                    initOwner(stage)
-                    title = "Success"
-                    headerText = "Success!"
-                    contentText = "The String is accepted"
-                  }.showAndWait()
-                }
-
-              case None => println("Cancel")
-            }
+            runAutomata(dfa)
           }
         }
-
         clearScreen.onAction= (e: ActionEvent) => {
           deleteEverything(dfa)
 
-          }
 
         }
 
+      }
 
+      nfaOption.onAction=(e:ActionEvent) => {
+
+      }
 
       dfaOption.onAction = (e:ActionEvent) => {
-        var dfa: DFA = new DFA()
+          dfa = new DFA()
         handleEvent(MouseEvent.MouseClicked) {
           a: MouseEvent => {
             programLogic(dfa,a.sceneX,a.sceneY)
 
           }
         }
+
+
       }
 
+      openItem.onAction=(e:ActionEvent)=> {
+        if (dfaOption.selected.value == false && nfaOption.selected.value == false) {
+          val alert = new Alert(AlertType.Error) {
+            initOwner(stage)
+            title = "Error"
+            headerText = "Error!"
+            contentText = "Please select a valid automaton before opening"
+          }.showAndWait()
+        } else {
+          val fileChooser = new FileChooser()
+          val selectedFile = fileChooser.showOpenDialog(stage)
+
+          val fileParser: FileParser = new FileParser(selectedFile)
+
+          if (!fileParser.getType().equals("DFA") && dfaOption.selected.value) {
+            val alert = new Alert(AlertType.Error) {
+              initOwner(stage)
+              title = "Error"
+              headerText = "Error!"
+              contentText = "The file you selected isn't valid"
+            }.showAndWait()
+          }else if(!fileParser.getType().equals("NFA") && nfaOption.selected.value){
+            val alert = new Alert(AlertType.Error) {
+              initOwner(stage)
+              title = "Error"
+              headerText = "Error!"
+              contentText = "The file you selected isn't valid"
+            }.showAndWait()
+          }else{
+            var i = 0
+            var states = fileParser.getStates()
+            for(i<-0 to states.size-1){
+              var arr = states(i).split("-")
+              addState(dfa,arr(0),arr(1).toDouble,arr(2).toDouble)
+              if(arr(3).equals("isInitial")){
+                circles.last.fill = Color.Brown
+                setAsInitial(dfa)
+              }else if(arr(3).equals("isAccepted")){
+                circles.last.fill=Color.Brown
+                setAsAccepted(dfa)
+              }
+            }
+
+            i = 0
+            var transitions = fileParser.getTransitions()
+            if(transitions!=null) {
+              for (i <- 0 to transitions.size - 1) {
+                var arr = transitions(i).split("-")
+                addNewTransition(dfa, arr(0), arr(1), arr(2))
+              }
+            }
+          }
+
+        }
+      }
+
+      saveItem.onAction = (e:ActionEvent)=>{
+        if(circles.size>0) {
+          val fileChooser = new FileChooser()
+          val selectedFile = fileChooser.showOpenDialog(stage)
+          val fileParser: FileParser = new FileParser(selectedFile)
+          fileParser.writeFile(dfa.states,dfa.transitions,"DFA",circles)
+
+        }else{
+          val alert = new Alert(AlertType.Error) {
+            initOwner(stage)
+            title = "Error"
+            headerText = "Error!"
+            contentText = "Theres nothing to save"
+          }.showAndWait()
+        }
 
 
-
+      }
 
 
     }

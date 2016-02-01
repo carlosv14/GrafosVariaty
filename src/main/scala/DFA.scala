@@ -36,5 +36,13 @@ class DFA {
     return valid
   }
 
+  def checkTransitionValidity(v:String, fromstate:State): Boolean={
+    var i = 0
+    for (i <- 0 to transitions.size - 1) {
+      if(v == transitions(i).transvalue && transitions(i).fromstate.StateName == fromstate.StateName)
+        return false
+    }
+    return true
+  }
 
 }

@@ -53,6 +53,16 @@ class GraphicManager {
     return line
   }
 
+  def DrawArrowHead(posx:Double,posy:Double): Circle ={
+    var arrowHead = new Circle(){
+      centerX = posx
+      centerY = posy
+      radius=3
+      fill=Color.Gray
+    }
+    println("here"+posy)
+    return arrowHead
+  }
 
 
 }
